@@ -1,0 +1,403 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Memória Tarsilinha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Cores inspiradas na Tarsila: azul vibrante, verde, amarelo/laranja */
+        :root {
+            --tarsila-blue: #1E40AF; /* Azul escuro/cobalto */
+            --tarsila-green: #059669; /* Verde esmeralda */
+            --tarsila-yellow: #FACC15; /* Amarelo ouro */
+            --tarsila-pink: #EC4899; /* Rosa magenta */
+            --card-back-color: #1E40AF;
+            --card-front-color: #FEE2E2; /* Rosa claro/creme */
+            --background-color: #FFFBEB; /* Amarelo muito claro */
+            --text-color: #1F2937;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 95%;
+            width: 800px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        /* TABULEIRO AGORA TEM 5 COLUNAS para 20 cartas */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px auto;
+            max-width: 800px; 
+        }
+        
+        /* Carta Base (Wrapper) */
+        .card-container {
+            perspective: 1000px;
+            /* Dimensões da carta (proporção 210x264) */
+            height: 126px; 
+            width: 100%;
+            aspect-ratio: 210 / 264; 
+        }
+        
+        /* Carta Interna (Onde ocorre a virada) */
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease-in-out;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        /* Virada da Carta */
+        .card.flipped {
+            transform: rotateY(180deg);
+            cursor: default;
+        }
+
+        .card.matched {
+            pointer-events: none;
+            opacity: 0.8;
+            transition: opacity 0.5s;
+        }
+
+        /* Frente e Verso da Carta */
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 5px; 
+            text-align: center;
+            border-radius: 10px;
+            border: 3px solid var(--text-color);
+            box-sizing: border-box;
+            line-height: 1.1;
+            /* REMOVEMOS backface-visibility para usar o controle de visibility abaixo */
+        }
+        
+        /* Estilo específico para a imagem dentro da carta */
+        .card-front img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            border-radius: 6px;
+        }
+
+
+        .card-front {
+            background-color: var(--card-front-color);
+            color: var(--text-color);
+            transform: rotateY(180deg);
+            visibility: hidden; /* Começa invisível */
+        }
+        
+        /* Regra para mostrar a frente quando a carta está virada */
+        .card.flipped .card-front {
+            visibility: visible;
+        }
+
+        .card-back {
+            background-color: var(--card-back-color);
+            color: white;
+            font-size: 2rem; 
+            font-weight: 700;
+            text-shadow: 0 0 5px black;
+            padding: 10px;
+            visibility: visible; /* Começa visível */
+        }
+        
+        /* Regra para esconder o verso quando a carta está virada, resolvendo o espelhamento */
+        .card.flipped .card-back {
+            visibility: hidden;
+        }
+
+        .card-back:hover {
+            background-color: var(--tarsila-pink);
+        }
+
+        /* Responsive */
+        @media (max-width: 650px) {
+            .container {
+                padding: 15px;
+            }
+            #game-board {
+                gap: 8px;
+                max-width: 100%; 
+            }
+            .card-container {
+                height: 90px;
+                aspect-ratio: 210 / 264;
+            }
+            .card-back {
+                font-size: 1.5rem; 
+            }
+        }
+
+        /* Estilo do botão e mensagens */
+        #restart-btn {
+            background-color: var(--tarsila-green);
+            color: white;
+            font-weight: bold;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px var(--tarsila-blue);
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        #restart-btn:active {
+            box-shadow: 0 1px var(--tarsila-blue);
+            transform: translateY(3px);
+        }
+        
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--tarsila-pink);
+            color: white;
+            padding: 40px 50px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        .message-box.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-3xl font-bold mb-2">🎨 Memória Tarsilinha 🖼️</h1>
+    <p class="mb-4 text-sm text-gray-600">Encontre os 10 pares de quadros/personagens. Chame o número da carta para virar!</p>
+
+    <div id="stats" class="mb-4 flex justify-center space-x-8 text-lg font-semibold">
+        <span>Movimentos: <span id="moves">0</span></span>
+        <span>Pares Encontrados: <span id="matches">0</span> / 10</span>
+    </div>
+
+    <div id="game-board">
+        <!-- Cartas serão injetadas aqui pelo JavaScript -->
+    </div>
+
+    <button id="restart-btn" class="mt-6">
+        Reiniciar Jogo
+    </button>
+</div>
+
+<!-- Caixa de Mensagem para o final do jogo -->
+<div id="message-box" class="message-box">
+    Parabéns! Você encontrou todos os pares em <span id="final-moves"></span> movimentos!
+</div>
+
+<script>
+    // Constantes e Variáveis do Jogo
+    const board = document.getElementById('game-board');
+    const movesDisplay = document.getElementById('moves');
+    const matchesDisplay = document.getElementById('matches');
+    const restartBtn = document.getElementById('restart-btn');
+    const messageBox = document.getElementById('message-box');
+    const finalMovesDisplay = document.getElementById('final-moves');
+
+    // DADOS ATUALIZADOS COM NOMES E IMAGENS (PLACEHOLDERS)
+    // TROQUE AS URLs DE "imageUrl" PELAS DOS SEUS QUADROS!
+    const cardData = [
+        { name: "CUCA", imageUrl: "cuca.png" },
+        { name: "SAPO CURURU", imageUrl: "sapo.png" },
+        { name: "LAGARTA", imageUrl: "lagarta.png" },
+        { name: "SACI", imageUrl: "saci.png" },
+        { name: "ABAPORU", imageUrl: "abaporu.png" },
+        { name: "BRINCO", imageUrl: "brinco.png" },
+        { name: "BICHO BARRIGUDO", imageUrl: "bicho.png" },
+        { name: "TOURO", imageUrl: "touro.png" },
+        { name: "TATU", imageUrl: "tatu.png" },
+        { name: "LONTRA", imageUrl: "lontra.png" }
+    ];
+    let gameCards = [];
+    let flippedCards = [];
+    let lockBoard = false;
+    let moves = 0;
+    let matches = 0;
+    const totalMatches = cardData.length; // 10 pares
+
+    // --- Funções Auxiliares ---
+
+    // Função para embaralhar um array (Algoritmo de Fisher-Yates)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    // Função para inicializar o tabuleiro
+    function initializeGame() {
+        moves = 0;
+        matches = 0;
+        flippedCards = [];
+        lockBoard = false;
+        
+        movesDisplay.textContent = moves;
+        // ATUALIZADO: Remove o "/ totalMatches" do JS para evitar duplicação visual
+        matchesDisplay.textContent = matches;
+        messageBox.classList.remove('show');
+
+        // Cria pares de cartas (20 no total) e as embaralha
+        gameCards = [...cardData, ...cardData];
+        shuffleArray(gameCards);
+        
+        renderBoard();
+    }
+
+    // Função para renderizar as cartas no DOM
+    function renderBoard() {
+        board.innerHTML = '';
+        gameCards.forEach((card, index) => {
+            const cardContainer = document.createElement('div');
+            cardContainer.classList.add('card-container');
+            
+            const cardElement = document.createElement('div');
+            cardElement.classList.add('card');
+            cardElement.dataset.name = card.name; // Usamos o nome para checar a combinação
+            cardElement.dataset.index = index;
+            cardElement.dataset.number = index + 1; // Adiciona o número da carta
+
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-face', 'card-front');
+            
+            // CONTEÚDO DA FRENTE: A IMAGEM
+            const imgElement = document.createElement('img');
+            imgElement.src = card.imageUrl;
+            imgElement.alt = card.name;
+            imgElement.onerror = function() {
+                this.style.display='none';
+                this.parentNode.textContent = 'ERRO NA IMAGEM';
+            }; // Tratamento de erro caso a URL não funcione
+            cardFront.appendChild(imgElement);
+            // FIM DO CONTEÚDO DA FRENTE
+
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-face', 'card-back');
+            // CONTEÚDO DO VERSO: O NÚMERO (1 a 20)
+            cardBack.textContent = index + 1;
+
+            cardElement.appendChild(cardFront);
+            cardElement.appendChild(cardBack);
+            cardContainer.appendChild(cardElement);
+
+            cardElement.addEventListener('click', flipCard);
+            board.appendChild(cardContainer);
+        });
+    }
+
+    // --- Lógica do Jogo (mantida a mesma) ---
+
+    function flipCard(event) {
+        const clickedCard = event.currentTarget;
+
+        if (lockBoard || clickedCard.classList.contains('flipped') || flippedCards.length >= 2) {
+            return;
+        }
+        
+        clickedCard.classList.add('flipped');
+        flippedCards.push(clickedCard);
+
+        if (flippedCards.length === 1) {
+            return;
+        }
+
+        incrementMoves();
+        checkForMatch();
+    }
+
+    function incrementMoves() {
+        moves++;
+        movesDisplay.textContent = moves;
+    }
+
+    function checkForMatch() {
+        const [card1, card2] = flippedCards;
+        const isMatch = card1.dataset.name === card2.dataset.name;
+
+        isMatch ? disableCards(card1, card2) : unflipCards();
+    }
+
+    function disableCards(card1, card2) {
+        card1.removeEventListener('click', flipCard);
+        card2.removeEventListener('click', flipCard);
+        
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+
+        matches++;
+        // ATUALIZADO: Remove o "/ totalMatches" do JS para evitar duplicação visual
+        matchesDisplay.textContent = matches;
+        
+        if (matches === totalMatches) {
+            setTimeout(showEndGameMessage, 800);
+        }
+
+        resetFlippedCards();
+    }
+
+    function unflipCards() {
+        lockBoard = true; 
+        
+        setTimeout(() => {
+            flippedCards.forEach(card => card.classList.remove('flipped'));
+            resetFlippedCards();
+        }, 1200); 
+    }
+
+    function resetFlippedCards() {
+        [flippedCards, lockBoard] = [[], false];
+    }
+    
+    function showEndGameMessage() {
+        finalMovesDisplay.textContent = moves;
+        messageBox.classList.add('show');
+    }
+
+    // --- Inicialização e Event Listeners ---
+    window.onload = initializeGame;
+    restartBtn.addEventListener('click', initializeGame);
+
+</script>
+</body>
+</html>
